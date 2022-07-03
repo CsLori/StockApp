@@ -8,6 +8,8 @@ import com.example.stockapp.domain.repository.StockRepository
 import com.example.stockapp.util.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import retrofit2.HttpException
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -35,8 +37,25 @@ class StockRepositoryImpl @Inject constructor(
             ))
             //Need to check if the initial list is empty or the query is nonsense
             val isDbEmpty = localListings.isEmpty() && query.isBlank()
+            //if it is not populated then we just want to load if from the cache
+            val shouldLoadFromCache = !isDbEmpty && !fetchFromRemote
+            if (shouldLoadFromCache) {
+                emit(Resource.Loading(false))
+                return@flow
+            }
+            val remoteListings = try {
+                val response = api.getListings()
+                response.byteStream()
 
-            emit(Resource.Loading(false))
+            } catch (e: IOException) {
+                e.printStackTrace()
+                emit(Resource.Error("Data cannot be loaded"))
+            } catch (e: HttpException) {
+                e.printStackTrace()
+                emit(Resource.Error("Check your internet connection"))
+
+            }
+
         }
     }
 }
